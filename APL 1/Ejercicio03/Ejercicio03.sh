@@ -344,7 +344,7 @@ case "$1" in
   '-h' || '-help' || '-?')
 	mostrarAyuda
     ;;
-   -d)
+   '-d')
 	eliminarDemonio
 	;;
   *)
