@@ -13,12 +13,10 @@ seMod() {
 }
 
 monitorizarDirectorio(){ # directorioM [acciones] directorioAcopiarArchivoDePublicar ListaDeArchivosMasDirectorio
-	## aqui deberiamos analizar aquellos archivos que hayan cambiado, los mostramos si dice listar, mostramos el peso de estos si dice pesar
 	IFS=' '
 	cadena=$2
 	cadena=${cadena//,/" "}
 	acciones=("$cadena")
-
 
 	declare -A acc
 	acc["listar"]=0
@@ -149,6 +147,7 @@ validarParametros3() {
 
 	if [ ! -e "$2" ]; then
 		return 2
+	fi
 
 	if [ ! -d "$2" ];
 	then
