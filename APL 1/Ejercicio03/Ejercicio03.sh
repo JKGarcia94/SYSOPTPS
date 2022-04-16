@@ -1,10 +1,15 @@
 #!/bin/bash
+nombreScript=$(readlink -f $0)
+dir_base=`dirname $nombreScript`
+pidFile="$dir_base/daemon.pid";
+touch "$pidFile"
+echo $pidFile
 
 seMod() {
 	lista=("$1")
 	inicio=0
 	while [ $inicio -ne ${#lista[@]} ]; do
-		if [[ "`cat fechaIni`" > `date -r "${lista[$inicio]}"` ]];then
+		if [[ "`cat fechaIni`" < `date -r "${lista[$inicio]}"` ]];then
 			return 1
 		fi
 		let inicio=$inicio+1
@@ -13,10 +18,12 @@ seMod() {
 }
 
 monitorizarDirectorio(){ # directorioM [acciones] directorioAcopiarArchivoDePublicar ListaDeArchivosMasDirectorio
+	echo "se ejecuto bien pro"
+
 	IFS=' '
 	cadena=$2
 	cadena=${cadena//,/" "}
-	acciones=("$cadena")
+	acciones=($cadena)
 
 	declare -A acc
 	acc["listar"]=0
@@ -49,7 +56,7 @@ monitorizarDirectorio(){ # directorioM [acciones] directorioAcopiarArchivoDePubl
 				;;
 				'peso')
 						while [ $inicio -ne ${#lista[@]} ]; do
-							if [[ "`cat fechaIni`" > `date -r "${lista[$inicio]}"` ]];then
+							if [[ "`cat fechaIni`" < `date -r "${lista[$inicio]}"` ]];then
 								cosa=($(ls -l "${lista[$inicio]}"))
 								linea="${lista[$inicio]}"
 								echo "${cosa[4]} bytes, pesa el archivo ${linea##*/}"
@@ -90,7 +97,7 @@ validarParametros1() {
 		return 2
 	fi
 
-	if [ ! -n "$2"];
+	if [ ! -n "$2" ];
 	then
 		return 3
 	fi
@@ -107,12 +114,13 @@ validarParametros2() {
 	cadena=${cadena//,/" "}
 	#transformar dicha cadena en una lista de acciones.
 	IPS=' '
-	lista=("$cadena")
+	lista=($cadena)
 	if [[ ${#lista[@]} > 4 || ${#lista[@]} < 1 ]]; then
 		return 1
 	fi
 
 	inicio=0
+
 	while [ $inicio -ne ${#lista[@]} ];do
 		if [[ "${lista[$inicio]}" != "listar" && "${lista[$inicio]}" != "peso" && "${lista[$inicio]}" != "compilar" && "${lista[$inicio]}" != "publicar" ]]; then
 			return 2
@@ -172,6 +180,7 @@ loop() {
 	lista=(`readlink -e $(find "$1" -type f) 2>/dev/null`) ## listamos todos los archivos del directorio y sus subdirectorios.
    	while [[ true ]];do
 			monitorizarDirectorio "$1" $2 "$3" "${lista[*]}"
+			lista=(`readlink -e $(find "$1" -type f) 2>/dev/null`) #lista con elementos actualizados, ya que podrian haber elementos renonbrados o eliminados o agregados.
   	done
 }
 
@@ -196,22 +205,21 @@ iniciarDemonio() {
    echo "Demonio creado"
 	if [[ "$1" == "-nohup-" ]];then
 		#por aca pasa la primera ejecución, abriendo mi script en segundo plano...
-		echo "claro que si mi ciela: paso por la primera"
 	   	nohup bash $0 $@ 2>/dev/null &
 	else
    	    echo $$ > "$pidFile"
-   	    echo "paso por la segunda"
-   	    loop "$2" $4 "$6"
+   	    echo `cat pidFile`
+   	    loop "$1" "$2" "$3"
 	fi
 }
 
 #esta función solo se ejecutara cuando envie el parametro -d
 eliminarDemonio() {
-   existe
-   if [[ $? -eq 0 ]];then
+  	existe
+ 	if [[ $? -eq 0 ]];then
       echo "el demonio no existe"
       exit 1;
-   fi
+   	fi
 	kill `cat $pidFile`
 	true > "$pidFile" # vacio el archivo pidFile
 	rm fechaIni
@@ -242,8 +250,6 @@ if [[ "$1" == "-nohup-" ]]; then
 	shift;	##borra el nohup y corre las demas variables una posición.
 else # si no es igual a -nohup- significa que es la primer vuelva y apenas se comenzo a ejecutar el proceso por lo que aqui es donde tengo qeu crear las fifos donde se almacenaran la fecha inicial.
 	if [[ "$1" != "-d" ]]; then
-		#nombreScript=$(readlink -f $0)
-		#dir_base=`dirname $nombreScript`
 		#chmod a+rw "$dirname"
 		#mkfifo -m 0664 "$dir_base/fechaIni"
 		fechaIni=/tmp/testpipe
@@ -260,14 +266,12 @@ else # si no es igual a -nohup- significa que es la primer vuelva y apenas se co
 			echo "ERROR: falta pasar directorio a monitorear"
 			exit 1;
 		fi
-		pidFile="$HOME/daemon.pid";
 	fi
 fi
-echo "mostrando $1"
 case "$1" in
   '-c')
 	if [[ "$posi" != "-nohup-" ]]; then
-
+		#por primera ves debería pasar por aca.
     	if [[ "$3" != '-a' ]]; then
 			echo "Error: el argumento 3 tiene que ser -a"
 			exit 1;
@@ -329,19 +333,20 @@ case "$1" in
 			exit 1
 		fi
 
-		if[[ $retorno == 2 ]]; then
-			nombreScript=$(readlink -f $0)
-			dir_base=`dirname $nombreScript`
+		if [[ $retorno == 2 ]]; then
+			#nombreScript=$(readlink -f $0)
+			#dir_base=`dirname $nombreScript`
 			#si el directorio no existe mandare el directorio de la script.
-			iniciarDemonio "-nohup-" $@ $dir_base
+			iniciarDemonio "-nohup-" $1 "$2" $3 "$4" $5 "$6" "$dir_base"
 		else
-			iniciarDemonio "-nohup-" $@
+			iniciarDemonio "-nohup-" $1 "$2" $3 "$4" $5 "$6"
 		fi
 	else
-    		iniciarDemonio $@
+			#por aqui pasa la segunda
+    		iniciarDemonio "$2" "$4" "$6"
 	fi
     ;;
-  '-h' || '-help' || '-?')
+  '-h' | '-help' | '-?')
 	mostrarAyuda
     ;;
    '-d')
