@@ -12,7 +12,7 @@ seMod() {
 	return 0
 }
 
-monitorizarDirectorio(){ # -c directorioM -a [acciones] -s directorioAcopiarArchivoDePublicar
+monitorizarDirectorio(){ # directorioM [acciones] directorioAcopiarArchivoDePublicar ListaDeArchivosMasDirectorio
 	## aqui deberiamos analizar aquellos archivos que hayan cambiado, los mostramos si dice listar, mostramos el peso de estos si dice pesar
 	IFS=' '
 	cadena=$2
