@@ -1,0 +1,26 @@
+./ejercicio2.sh Pruebas/DirectorioArchivo Pruebas/cadenas 
+salida: 0 commit valido
+consulta salida: echo $?
+
+./ejercicio2.sh Pruebas/DirectorioArchivo Pruebas/cadenavacia
+Salida: 0 commit valido
+consulta salida : echo $?
+
+./ejercicio2.sh Pruebas/DirectorioVacio Pruebas/cadenas
+Salida: 1 commit invalido
+consulta salida : echo $?
+
+./ejercicio2.sh Pruebas/DirectorioVacio Pruebas/cadenasvacia
+Salida: 0 commit valido ( archivo de cadenas vacio)
+consulta salida : echo $?
+
+./ejercicio2.sh Pruebas/"Directorio Espacio" Pruebas/cadenas
+Salida: 1 commit invalido
+
+./ejercicio2.sh Pruebas/"Directorio Espacio2"/Directorio Prueba/cadenas
+Salida :1 commit invalido
+
+
+
+
+
