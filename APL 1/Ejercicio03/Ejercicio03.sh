@@ -28,6 +28,7 @@ monitorizarDirectorio(){ # directorioM [acciones] directorioAcopiarArchivoDePubl
 
 	inicio=0
 
+	#Usamos el array asociativo para insertar 1 en aquellas acciones que tenemos en la lista de acciones.
 	while [ "$inicio" -ne "${#acc[*]}" ];do
 		acc["${acciones[$inicio]}"]=1
 		let inicio=$inicio+1
@@ -35,12 +36,13 @@ monitorizarDirectorio(){ # directorioM [acciones] directorioAcopiarArchivoDePubl
 	lista=($4)
 	for i in ${!acc[@]}
 	do
+		#Si la accion esta en la lista, debería tener como valor un 1. Aquellas con valor 0 no podrán estar ahí.
 		if [[ "${acc[$i]}" == 1 ]]; then
 			let inicio=0
 			case $i in
 				'listar')
 						while [ $inicio -ne ${#lista[@]} ]; do
-							if [[ "`cat fechaIni`" > `date -r "${lista[$inicio]}"` ]];then
+							if [[ "`cat fechaIni`" < `date -r "${lista[$inicio]}"` ]];then
 								linea="${lista[$inicio]}"
 								echo "${linea##*/} fue modificado"
 							fi
