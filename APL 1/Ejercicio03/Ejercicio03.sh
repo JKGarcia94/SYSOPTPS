@@ -99,6 +99,10 @@ validarParametros1() {
 
 validarParametros2() {
 	#crear una lista la cual almacena sin las comas cada acción.
+	if [ ! -n "$1" ]; then
+		return 4
+	fi
+
 	cadena=$1
 	cadena=${cadena//,/" "}
 	#transformar dicha cadena en una lista de acciones.
@@ -166,7 +170,7 @@ loop() {
 	IFS=$'\n'
 	lista=(`readlink -e $(find "$1" -type f) 2>/dev/null`) ## listamos todos los archivos del directorio y sus subdirectorios.
    	while [[ true ]];do
-			monitorizarDirectorio $@ "${lista[*]}"
+			monitorizarDirectorio "$1" $2 "$3" "${lista[*]}"
   	done
 }
 
@@ -196,7 +200,7 @@ iniciarDemonio() {
 	else
    	    echo $$ > "$pidFile"
    	    echo "paso por la segunda"
-   	    loop $2 $4 $6
+   	    loop "$2" $4 "$6"
 	fi
 }
 
@@ -244,14 +248,14 @@ else # si no es igual a -nohup- significa que es la primer vuelva y apenas se co
 		fechaIni=/tmp/testpipe
 		trap "rm -f $fechaIni" exit
 
-		if [[ ! -p $fechaIni ]]; then
+		if [ ! -p $fechaIni ]; then
 			mkfifo $fechaIni
 			echo "se creo el fifo"
 		else
 			echo "ya se había creado"
 		fi
 		date > fechaIni
-		if [[ ! -n "$2" ]];then
+		if [ ! -n "$2" ];then
 			echo "ERROR: falta pasar directorio a monitorear"
 			exit 1;
 		fi
@@ -292,6 +296,11 @@ case "$1" in
 		fi
 		if [[ $retorno == 3 ]]; then
 			echo "Error, no puede haber un publicar y no un compilar"
+			exit 1
+		fi
+
+		if [[ $retorno == 4 ]]; then
+			echo "Error, no hay acciones que realizar"
 			exit 1
 		fi
 
