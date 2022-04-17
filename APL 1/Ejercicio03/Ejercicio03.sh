@@ -93,15 +93,14 @@ monitorizarDirectorio(){ # directorioM [acciones] directorioAcopiarArchivoDePubl
 						done
 
 						if [[ $cambio == 1 ]]; then
-							echo "Haciendo uso del compilar..." >> "$1/concatenado.txt"
 							while [ $inicio -ne ${#lista[@]} ]; do
-								cat "${lista[$inicio]}" >> "$1/concatenado.txt"
+								cat "${lista[$inicio]}" >> "$dir_base/bin/concatenado.txt"
 								let inicio=$inicio+1
 							done
 						fi
 				;;
 				'publicar')
-					cp "$1/concatenado.txt" "$3/concatenado.txt"
+					cp "$dir_base/bin/concatenado.txt" "$3/concatenado.txt"
 				;;
 			 esac
 		fi
@@ -149,6 +148,10 @@ validarParametros2() {
 	while [ $inicio -ne ${#lista[@]} ];do
 		if [[ "${lista[$inicio]}" != "listar" && "${lista[$inicio]}" != "peso" && "${lista[$inicio]}" != "compilar" && "${lista[$inicio]}" != "publicar" ]]; then
 			return 2
+		fi
+		if [[ "${lista[$inicio]}" == "compilar" && ! -e "$dir_base/bin" ]];
+		then
+			mkdir "$dir_base/bin"
 		fi
 		let inicio=$inicio+1
 	done
