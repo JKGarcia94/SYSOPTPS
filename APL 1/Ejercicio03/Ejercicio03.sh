@@ -24,7 +24,7 @@ monitorizarDirectorio(){ # directorioM [acciones] directorioAcopiarArchivoDePubl
 		let inicio=$inicio+1
 	done
 
-
+	#Quizas podria aqui armarme una lista de modificados/eliminados/renombrados junto a una lista de enteros que tengan "1" si el archivo fue modificado y "2" si el archivo fue renombrado/eliminado
 
 	for i in ${!acc[*]}
 	do
