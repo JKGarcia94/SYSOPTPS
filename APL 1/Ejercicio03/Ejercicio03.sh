@@ -7,7 +7,9 @@ touch "$pidFile"
 monitorizarDirectorio(){ # directorioM [acciones] directorioAcopiarArchivoDePublicar ListaDeArchivosMasDirectorio
 	echo "Ejecutando Monitorear Directorio."
 	lista=($4)
+
 	IFS=" "
+
 	cadena="$2"
 	cadena=${cadena//,/" "}
 	acciones=($(echo "$cadena"))
@@ -40,11 +42,7 @@ monitorizarDirectorio(){ # directorioM [acciones] directorioAcopiarArchivoDePubl
 							if [ -f "${lista[$inicio]}" ];
 							then
 								fechaMod=`date -r "${lista[$inicio]}" +%s`
-								echo "${lista[$inicio]}" posee fechaMod $fechaMod
-								let diferencia=$fechaControl-$fechaMod
-								echo $diferencia
-	
-								if [[ diferencia < 0 && "${lista[$inicio]}" != "$1/concatenado.txt" ]];
+								if [[ $fechaControl < $fechaMod ]];
 								then
 									linea="${lista[$inicio]}"
 									echo "${linea##*/} fue modificado"
@@ -62,8 +60,7 @@ monitorizarDirectorio(){ # directorioM [acciones] directorioAcopiarArchivoDePubl
 							if [ -f "${lista[$inicio]}" ];
 							then
 								fechaMod=`date -r "${lista[$inicio]}" +%s`
-								let diferencia=$fechaControl-$fechaMod
-								if [[ diferencia < 0 && "${lista[$inicio]}" != "$1/concatenado.txt" ]];
+								if [[ $fechaControl < $fechaMod ]];
 								then
 									linea="${lista[$inicio]}"
 									tamanio=$(stat -c %s "${lista[$inicio]}")
@@ -85,8 +82,7 @@ monitorizarDirectorio(){ # directorioM [acciones] directorioAcopiarArchivoDePubl
 							if [ -f "${lista[$inicio]}" ];
 							then
 								fechaMod=`date -r "${lista[$inicio]}" +%s`
-								let diferencia=$fechaControl-$fechaMod
-								if [[ diferencia < 0 && "${lista[$inicio]}" != "$1/concatenado.txt" ]];
+								if [[ $fechaControl < $fechaMod ]];
 								then
 									let cambio=1
 									break
@@ -207,12 +203,13 @@ validarParametros3() {
 }
 
 loop() {
+	date -u +%s > fechaIni
    	while [[ true ]];do
    			IFS=$'\n'
    			lista=(`readlink -e $(find "$1" -type f) 2>/dev/null`) #lista con elementos actualizados, ya que podrian haber elementos renonbrados o eliminados o agregados.
-   			date -u +%s > fechaIni
 			monitorizarDirectorio "$1" "$2" "$3" "${lista[*]}"
-  			sleep 10
+  			date -u +%s > fechaIni
+  			sleep 20
   	done
 }
 
