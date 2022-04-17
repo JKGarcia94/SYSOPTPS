@@ -39,7 +39,7 @@ monitorizarDirectorio(){ # directorioM [acciones] directorioAcopiarArchivoDePubl
 						fechaControl=$(echo `cat fechaIni`)
 						while [ $inicio -ne ${#lista[@]} ]; do
 							echo 
-							if [ -f "${lista[$inicio]}" ];
+							if [ -e "${lista[$inicio]}" ];
 							then
 								fechaMod=`date -r "${lista[$inicio]}" +%s`
 								if [[ $fechaControl < $fechaMod ]];
@@ -49,7 +49,7 @@ monitorizarDirectorio(){ # directorioM [acciones] directorioAcopiarArchivoDePubl
 								fi
 							else
 									linea="${lista[$inicio]}"
-									echo "${linea##*/} fue modificado"
+									echo "${linea##*/} fue modificado (renombrado o eliminado o recientemente creado)"
 							fi
 							let inicio=$inicio+1
 						done
@@ -57,7 +57,7 @@ monitorizarDirectorio(){ # directorioM [acciones] directorioAcopiarArchivoDePubl
 				'peso')
 						fechaControl=$(echo `cat fechaIni`)
 						while [ $inicio -ne ${#lista[@]} ]; do
-							if [ -f "${lista[$inicio]}" ];
+							if [ -e "${lista[$inicio]}" ];
 							then
 								fechaMod=`date -r "${lista[$inicio]}" +%s`
 								if [[ $fechaControl < $fechaMod ]];
@@ -67,9 +67,7 @@ monitorizarDirectorio(){ # directorioM [acciones] directorioAcopiarArchivoDePubl
 									echo "$tamanio bytes, pesa el archivo ${linea##*/}"
 								fi
 							else
-								linea="${lista[$inicio]}"
-								tamanio=$(stat -c %s "${lista[$inicio]}")
-								echo "$tamanio bytes, pesa el archivo ${linea##*/}"
+								echo "el archivo ${linea##*/} ha sido eliminado o renombrado o recientemente creado"
 							fi
 							let inicio=$inicio+1
 						done
@@ -79,7 +77,7 @@ monitorizarDirectorio(){ # directorioM [acciones] directorioAcopiarArchivoDePubl
 						let inicio=0
 						cambio=0
 						while [ $inicio -ne ${#lista[@]} ]; do
-							if [ -f "${lista[$inicio]}" ];
+							if [ -e "${lista[$inicio]}" ];
 							then
 								fechaMod=`date -r "${lista[$inicio]}" +%s`
 								if [[ $fechaControl < $fechaMod ]];
@@ -203,12 +201,14 @@ validarParametros3() {
 }
 
 loop() {
+	IFS=$'\n'
+   	lista=(`readlink -e $(find "$1" -type f) 2>/dev/null`)
 	date -u +%s > fechaIni
    	while [[ true ]];do
-   			IFS=$'\n'
-   			lista=(`readlink -e $(find "$1" -type f) 2>/dev/null`) #lista con elementos actualizados, ya que podrian haber elementos renonbrados o eliminados o agregados.
 			monitorizarDirectorio "$1" "$2" "$3" "${lista[*]}"
   			date -u +%s > fechaIni
+  			IFS=$'\n'
+   			lista=(`readlink -e $(find "$1" -type f) 2>/dev/null`) #lista con elementos actualizados, ya que podrian haber elementos renonbrados o eliminados o agregados.
   			sleep 20
   	done
 }
