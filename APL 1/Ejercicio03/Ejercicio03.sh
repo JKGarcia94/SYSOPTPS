@@ -4,32 +4,11 @@ dir_base=`dirname $nombreScript`
 pidFile="$dir_base/daemon.pid";
 touch "$pidFile"
 
-seMod() {
-	lista=("$1")
-	inicio=0
-	fechaControl=`echo `cat fechaIni``
-	while [ $inicio -ne ${#lista[@]} ]; do
-		if [ -e "${lista[$inicio]}" ];
-		then
-			fechaMod=`date -r "${lista[$inicio]}"`
-			let diferencia=$fechaMod-$fechaControl
-			if [[ diferencia > 0 ]];then
-				return 1
-			fi
-		else
-			return 1
-		fi
-		let inicio=$inicio+1
-	done
-	return 0
-}
-
 monitorizarDirectorio(){ # directorioM [acciones] directorioAcopiarArchivoDePublicar ListaDeArchivosMasDirectorio
 	echo "Ejecutando Monitorear Directorio."
 	lista=($4)
 
 	IFS=" "
-
 	cadena="$2"
 	cadena=${cadena//,/" "}
 	acciones=($(echo "$cadena"))
@@ -42,29 +21,27 @@ monitorizarDirectorio(){ # directorioM [acciones] directorioAcopiarArchivoDePubl
 
 	inicio=0
 	#Usamos el array asociativo para insertar 1 en aquellas acciones que tenemos en la lista de acciones.
-	while [ "$inicio" -ne "${#acc[*]}" ];do
+	while [ "$inicio" -ne "${#acciones[*]}" ];do
 		acc["${acciones[$inicio]}"]=1
 		let inicio=$inicio+1
 	done
 
-	for i in ${!acc[@]}
+	for i in ${!acc[*]}
 	do
 		#Si la accion esta en la lista, debería tener como valor un 1. Aquellas con valor 0 no podrán estar ahí.
 		if [[ "${acc[$i]}" == 1 ]]; then
 			let inicio=0
-			case $i in
+			case "$i" in
 				'listar')
-						fechaControl=`echo `cat fechaIni``
-						echo $fechaControl
+						fechaControl=$(echo `cat fechaIni`)
 						while [ $inicio -ne ${#lista[@]} ]; do
 							echo 
 							if [ -e "${lista[$inicio]}" ];
 							then
-								echo "${lista[$inicio]}"
 								fechaMod=`date -r "${lista[$inicio]}"`
-								let diferencia=$fechaMod-$fechaControl
-								echo $diferencia
-								if [[ diferencia > 0 ]];
+								let diferencia=$fechaControl-$fechaMod
+	
+								if [[ diferencia < 0 && "${lista[$inicio]}" != "$1/concatenado.txt" ]];
 								then
 									linea="${lista[$inicio]}"
 									echo "${linea##*/} fue modificado"
@@ -82,27 +59,46 @@ monitorizarDirectorio(){ # directorioM [acciones] directorioAcopiarArchivoDePubl
 							if [ -e "${lista[$inicio]}" ];
 							then
 								fechaMod=`date -r "${lista[$inicio]}"`
-								let diferencia=$fechaMod-$fechaControl
-								if [[ diferencia > 0 ]];
+								let diferencia=$fechaControl-$fechaMod
+								if [[ diferencia < 0 && "${lista[$inicio]}" != "$1/concatenado.txt" ]];
 								then
-									cosa=(`ls -l "${lista[$inicio]}"`)
 									linea="${lista[$inicio]}"
-									echo "${cosa[4]} bytes, pesa el archivo ${linea##*/}"
+									tamanio=$(stat -c %s "${lista[$inicio]}")
+									echo "$tamanio bytes, pesa el archivo ${linea##*/}"
 								fi
 							else
-								cosa=($(ls -l "${lista[$inicio]}"))
 								linea="${lista[$inicio]}"
-								echo "${cosa[4]} bytes, pesa el archivo ${linea##*/}"
+								tamanio=$(stat -c %s "${lista[$inicio]}")
+								echo "$tamanio bytes, pesa el archivo ${linea##*/}"
 							fi
 							let inicio=$inicio+1
 						done
 				;;
 				'compilar')
-						seMod "${lista[*]}"
-						retorno=$?
-						if [[ $retorno == 1 ]]; then
+						fechaControl=`echo `cat fechaIni``
+						let inicio=0
+						cambio=0
+						while [ $inicio -ne ${#lista[@]} ]; do
+							if [ -e "${lista[$inicio]}" ];
+							then
+								fechaMod=`date -r "${lista[$inicio]}"`
+								let diferencia=$fechaControl-$fechaMod
+								if [[ diferencia < 0 && "${lista[$inicio]}" != "$1/concatenado.txt" ]];
+								then
+									let cambio=1
+									break
+								fi
+							else
+								let cambio=1
+								break
+							fi
+							let inicio=$inicio+1
+						done
+
+						if [[ $cambio == 1 ]]; then
+							echo "Haciendo uso del compilar..." >> "$1/concatenado.txt"
 							while [ $inicio -ne ${#lista[@]} ]; do
-								echo cat `"${lista[$inicio]}"` >> "$1/concatenado.txt"
+								cat "${lista[$inicio]}" >> "$1/concatenado.txt"
 								let inicio=$inicio+1
 							done
 						fi
@@ -113,8 +109,6 @@ monitorizarDirectorio(){ # directorioM [acciones] directorioAcopiarArchivoDePubl
 			 esac
 		fi
 	done
-	echo $(date -d "$fecha" +%s) > fechaIni
-
 }
 
 
@@ -215,7 +209,8 @@ loop() {
    	while [[ true ]];do
 			monitorizarDirectorio "$1" $2 "$3" "${lista[*]}"
 			lista=(`readlink -e $(find "$1" -type f) 2>/dev/null`) #lista con elementos actualizados, ya que podrian haber elementos renonbrados o eliminados o agregados.
-  			sleep 5
+  			sleep 10
+  			echo $(date -d "$fecha" +%s) > fechaIni
   	done
 }
 
@@ -242,8 +237,9 @@ iniciarDemonio() {
 		echo "Demonio creado"
 	   	nohup bash $0 $@ 2>/dev/null &
 	else
+		#por aca debería pasar la segunda ejecución pudiendo almacenar el PID del proceso para luego eliminarlo.
+		#Tambien se inicia el loop
    	    echo $$ > "$pidFile"
-   	#    echo `cat $pidFile`
    	    loop "$1" "$2" "$3"
 	fi
 }
@@ -285,8 +281,7 @@ if [[ "$1" == "-nohup-" ]]; then
 	shift;	##borra el nohup y corre las demas variables una posición.
 else # si no es igual a -nohup- significa que es la primer vuelva y apenas se comenzo a ejecutar el proceso por lo que aqui es donde tengo qeu crear las fifos donde se almacenaran la fecha inicial.
 	if [[ "$1" != "-d" ]]; then
-		#chmod a+rw "$dirname"
-		#mkfifo -m 0664 "$dir_base/fechaIni"
+
 		fechaIni=/tmp/testpipe
 		trap "rm -f $fechaIni" exit
 
@@ -372,8 +367,6 @@ case "$1" in
 		fi
 
 		if [[ $retorno == 2 ]]; then
-			#nombreScript=$(readlink -f $0)
-			#dir_base=`dirname $nombreScript`
 			#si el directorio no existe mandare el directorio de la script.
 			iniciarDemonio "-nohup-" $1 "$2" $3 "$4" $5 "$6" "$dir_base"
 		else
