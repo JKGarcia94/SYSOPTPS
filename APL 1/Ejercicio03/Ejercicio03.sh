@@ -1,11 +1,8 @@
 #!/bin/bash
 nombreScript=$(readlink -f $0)
 dir_base=`dirname $nombreScript`
-pidFile="$dir_base/daemon.pid";
-touch "$pidFile"
 
 monitorizarDirectorio(){ # directorioM [acciones] directorioAcopiarArchivoDePublicar ListaDeArchivosMasDirectorio
-	echo "Ejecutando Monitorear Directorio."
 	lista=($4)
 
 	IFS=" "
@@ -125,6 +122,7 @@ validarParametros1() {
 	then
 		return 3
 	fi
+
 	return 0;
 }
 
@@ -217,10 +215,10 @@ loop() {
 }
 
 existe() {
-   if [[ ! -s $pidFile ]];then
+   if [[ ! -s "$1" ]];then
       return 0;
    fi
-   if [[ -n $(ps aux | grep `cat $pidFile` | grep -v grep) ]];then
+   if [[ -n $(ps aux | grep `cat "$1"` | grep -v grep) ]];then
       return 1;
    else
       return 0;
@@ -241,6 +239,8 @@ iniciarDemonio() {
 	else
 		#por aca debería pasar la segunda ejecución pudiendo almacenar el PID del proceso para luego eliminarlo.
 		#Tambien se inicia el loop
+   	    pidFile="$dir_base/$$.pid";
+		touch "$pidFile"
    	    echo $$ > "$pidFile"
    	    loop "$1" "$2" "$3"
 	fi
@@ -248,15 +248,28 @@ iniciarDemonio() {
 
 #esta función solo se ejecutara cuando envie el parametro -d
 eliminarDemonio() {
-  	existe
- 	if [[ $? -eq 0 ]];then
-      echo "el demonio no existe"
-      exit 1;
-   	fi
-	kill `cat $pidFile`
-	true > "$pidFile" # vacio el archivo pidFile
+	#Obtenemos todos los demonios creados en anteriores scripts
+	demonios=(`readlink -e $(find "$dir_base" -name "*.pid"  -type f) 2>/dev/null`)
+	inicio=0
+	echo la cantidad de demonios es "${#demonios[*]}"
+	if [[ "${#demonios[*]}" == 0 ]];
+	then
+		echo "No hay demonios que eliminar..."
+	fi
+	while [ $inicio -ne "${#demonios[*]}" ];do
+		existe "${demonios[$inicio]}"
+ 		if [[ $? -eq 0 ]];then
+      		echo "el demonio no existe"
+      		exit 1;
+   		fi
+		kill `cat "${demonios[$inicio]}"`
+		true > "${demonios[$inicio]}"
+		linea="${demonios[$inicio]}"
+		echo "demonio ${linea##*/} exterminado"
+		rm "${demonios[$inicio]}"
+		let inicio=$inicio+1
+	done
 	rm fechaIni
-	echo "el demonio fue eliminado"
 }
 
 
