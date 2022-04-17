@@ -7,7 +7,6 @@ touch "$pidFile"
 monitorizarDirectorio(){ # directorioM [acciones] directorioAcopiarArchivoDePublicar ListaDeArchivosMasDirectorio
 	echo "Ejecutando Monitorear Directorio."
 	lista=($4)
-
 	IFS=" "
 	cadena="$2"
 	cadena=${cadena//,/" "}
@@ -26,6 +25,8 @@ monitorizarDirectorio(){ # directorioM [acciones] directorioAcopiarArchivoDePubl
 		let inicio=$inicio+1
 	done
 
+
+
 	for i in ${!acc[*]}
 	do
 		#Si la accion esta en la lista, debería tener como valor un 1. Aquellas con valor 0 no podrán estar ahí.
@@ -36,10 +37,12 @@ monitorizarDirectorio(){ # directorioM [acciones] directorioAcopiarArchivoDePubl
 						fechaControl=$(echo `cat fechaIni`)
 						while [ $inicio -ne ${#lista[@]} ]; do
 							echo 
-							if [ -e "${lista[$inicio]}" ];
+							if [ -f "${lista[$inicio]}" ];
 							then
-								fechaMod=`date -r "${lista[$inicio]}"`
+								fechaMod=`date -r "${lista[$inicio]}" +%s`
+								echo "${lista[$inicio]}" posee fechaMod $fechaMod
 								let diferencia=$fechaControl-$fechaMod
+								echo $diferencia
 	
 								if [[ diferencia < 0 && "${lista[$inicio]}" != "$1/concatenado.txt" ]];
 								then
@@ -54,11 +57,11 @@ monitorizarDirectorio(){ # directorioM [acciones] directorioAcopiarArchivoDePubl
 						done
 				;;
 				'peso')
-						fechaControl=`echo `cat fechaIni``
+						fechaControl=$(echo `cat fechaIni`)
 						while [ $inicio -ne ${#lista[@]} ]; do
-							if [ -e "${lista[$inicio]}" ];
+							if [ -f "${lista[$inicio]}" ];
 							then
-								fechaMod=`date -r "${lista[$inicio]}"`
+								fechaMod=`date -r "${lista[$inicio]}" +%s`
 								let diferencia=$fechaControl-$fechaMod
 								if [[ diferencia < 0 && "${lista[$inicio]}" != "$1/concatenado.txt" ]];
 								then
@@ -75,13 +78,13 @@ monitorizarDirectorio(){ # directorioM [acciones] directorioAcopiarArchivoDePubl
 						done
 				;;
 				'compilar')
-						fechaControl=`echo `cat fechaIni``
+						fechaControl=$(echo `cat fechaIni`)
 						let inicio=0
 						cambio=0
 						while [ $inicio -ne ${#lista[@]} ]; do
-							if [ -e "${lista[$inicio]}" ];
+							if [ -f "${lista[$inicio]}" ];
 							then
-								fechaMod=`date -r "${lista[$inicio]}"`
+								fechaMod=`date -r "${lista[$inicio]}" +%s`
 								let diferencia=$fechaControl-$fechaMod
 								if [[ diferencia < 0 && "${lista[$inicio]}" != "$1/concatenado.txt" ]];
 								then
@@ -204,13 +207,12 @@ validarParametros3() {
 }
 
 loop() {
-	IFS=$'\n'
-	lista=(`readlink -e $(find "$1" -type f) 2>/dev/null`) ## listamos todos los archivos del directorio y sus subdirectorios.
    	while [[ true ]];do
-			monitorizarDirectorio "$1" $2 "$3" "${lista[*]}"
-			lista=(`readlink -e $(find "$1" -type f) 2>/dev/null`) #lista con elementos actualizados, ya que podrian haber elementos renonbrados o eliminados o agregados.
+   			IFS=$'\n'
+   			lista=(`readlink -e $(find "$1" -type f) 2>/dev/null`) #lista con elementos actualizados, ya que podrian haber elementos renonbrados o eliminados o agregados.
+   			date -u +%s > fechaIni
+			monitorizarDirectorio "$1" "$2" "$3" "${lista[*]}"
   			sleep 10
-  			echo $(date -d "$fecha" +%s) > fechaIni
   	done
 }
 
@@ -291,9 +293,6 @@ else # si no es igual a -nohup- significa que es la primer vuelva y apenas se co
 		else
 			echo "ya se había creado"
 		fi
-
-
-		echo $(date -d "$fecha" +%s) > fechaIni
 
 		if [ ! -n "$2" ];then
 			echo "ERROR: falta pasar directorio a monitorear"
