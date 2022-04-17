@@ -94,13 +94,13 @@ monitorizarDirectorio(){ # directorioM [acciones] directorioAcopiarArchivoDePubl
 
 						if [[ $cambio == 1 ]]; then
 							while [ $inicio -ne ${#lista[@]} ]; do
-								cat "${lista[$inicio]}" >> "$dir_base/bin/concatenado.txt"
+								cat "${lista[$inicio]}" >> "$dir_base/bin/$(cat $pidFile).txt"
 								let inicio=$inicio+1
 							done
 						fi
 				;;
 				'publicar')
-					cp "$dir_base/bin/concatenado.txt" "$3/concatenado.txt"
+					cp "$dir_base/bin/$(cat $pidFile).txt" "$3/$(cat $pidFile).txt"
 				;;
 			 esac
 		fi
