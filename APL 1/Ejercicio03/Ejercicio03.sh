@@ -3,13 +3,20 @@ nombreScript=$(readlink -f $0)
 dir_base=`dirname $nombreScript`
 pidFile="$dir_base/daemon.pid";
 touch "$pidFile"
-echo $pidFile
 
 seMod() {
 	lista=("$1")
 	inicio=0
+	fechaControl=`echo `cat fechaIni``
 	while [ $inicio -ne ${#lista[@]} ]; do
-		if [[ "`cat fechaIni`" < `date -r "${lista[$inicio]}"` ]];then
+		if [ -e "${lista[$inicio]}" ];
+		then
+			fechaMod=`date -r "${lista[$inicio]}"`
+			let diferencia=$fechaMod-$fechaControl
+			if [[ diferencia > 0 ]];then
+				return 1
+			fi
+		else
 			return 1
 		fi
 		let inicio=$inicio+1
@@ -18,12 +25,14 @@ seMod() {
 }
 
 monitorizarDirectorio(){ # directorioM [acciones] directorioAcopiarArchivoDePublicar ListaDeArchivosMasDirectorio
-	echo "se ejecuto bien pro"
+	echo "Ejecutando Monitorear Directorio."
+	lista=($4)
 
-	IFS=' '
-	cadena=$2
+	IFS=" "
+
+	cadena="$2"
 	cadena=${cadena//,/" "}
-	acciones=($cadena)
+	acciones=($(echo "$cadena"))
 
 	declare -A acc
 	acc["listar"]=0
@@ -32,13 +41,12 @@ monitorizarDirectorio(){ # directorioM [acciones] directorioAcopiarArchivoDePubl
 	acc["publicar"]=0
 
 	inicio=0
-
 	#Usamos el array asociativo para insertar 1 en aquellas acciones que tenemos en la lista de acciones.
 	while [ "$inicio" -ne "${#acc[*]}" ];do
 		acc["${acciones[$inicio]}"]=1
 		let inicio=$inicio+1
 	done
-	lista=($4)
+
 	for i in ${!acc[@]}
 	do
 		#Si la accion esta en la lista, debería tener como valor un 1. Aquellas con valor 0 no podrán estar ahí.
@@ -46,17 +54,42 @@ monitorizarDirectorio(){ # directorioM [acciones] directorioAcopiarArchivoDePubl
 			let inicio=0
 			case $i in
 				'listar')
+						fechaControl=`echo `cat fechaIni``
+						echo $fechaControl
 						while [ $inicio -ne ${#lista[@]} ]; do
-							if [[ "`cat fechaIni`" < `date -r "${lista[$inicio]}"` ]];then
-								linea="${lista[$inicio]}"
-								echo "${linea##*/} fue modificado"
+							echo 
+							if [ -e "${lista[$inicio]}" ];
+							then
+								echo "${lista[$inicio]}"
+								fechaMod=`date -r "${lista[$inicio]}"`
+								let diferencia=$fechaMod-$fechaControl
+								echo $diferencia
+								if [[ diferencia > 0 ]];
+								then
+									linea="${lista[$inicio]}"
+									echo "${linea##*/} fue modificado"
+								fi
+							else
+									linea="${lista[$inicio]}"
+									echo "${linea##*/} fue modificado"
 							fi
 							let inicio=$inicio+1
 						done
 				;;
 				'peso')
+						fechaControl=`echo `cat fechaIni``
 						while [ $inicio -ne ${#lista[@]} ]; do
-							if [[ "`cat fechaIni`" < `date -r "${lista[$inicio]}"` ]];then
+							if [ -e "${lista[$inicio]}" ];
+							then
+								fechaMod=`date -r "${lista[$inicio]}"`
+								let diferencia=$fechaMod-$fechaControl
+								if [[ diferencia > 0 ]];
+								then
+									cosa=(`ls -l "${lista[$inicio]}"`)
+									linea="${lista[$inicio]}"
+									echo "${cosa[4]} bytes, pesa el archivo ${linea##*/}"
+								fi
+							else
 								cosa=($(ls -l "${lista[$inicio]}"))
 								linea="${lista[$inicio]}"
 								echo "${cosa[4]} bytes, pesa el archivo ${linea##*/}"
@@ -69,7 +102,7 @@ monitorizarDirectorio(){ # directorioM [acciones] directorioAcopiarArchivoDePubl
 						retorno=$?
 						if [[ $retorno == 1 ]]; then
 							while [ $inicio -ne ${#lista[@]} ]; do
-								cat "${lista[$inicio]}" >> "$1/concatenado.txt"
+								echo cat `"${lista[$inicio]}"` >> "$1/concatenado.txt"
 								let inicio=$inicio+1
 							done
 						fi
@@ -80,7 +113,8 @@ monitorizarDirectorio(){ # directorioM [acciones] directorioAcopiarArchivoDePubl
 			 esac
 		fi
 	done
-	date > fechaIni
+	echo $(date -d "$fecha" +%s) > fechaIni
+
 }
 
 
@@ -181,6 +215,7 @@ loop() {
    	while [[ true ]];do
 			monitorizarDirectorio "$1" $2 "$3" "${lista[*]}"
 			lista=(`readlink -e $(find "$1" -type f) 2>/dev/null`) #lista con elementos actualizados, ya que podrian haber elementos renonbrados o eliminados o agregados.
+  			sleep 5
   	done
 }
 
@@ -202,13 +237,13 @@ iniciarDemonio() {
       echo "el demonio ya existe"
       exit 1;
    fi
-   echo "Demonio creado"
 	if [[ "$1" == "-nohup-" ]];then
 		#por aca pasa la primera ejecución, abriendo mi script en segundo plano...
+		echo "Demonio creado"
 	   	nohup bash $0 $@ 2>/dev/null &
 	else
    	    echo $$ > "$pidFile"
-   	    echo `cat pidFile`
+   	#    echo `cat $pidFile`
    	    loop "$1" "$2" "$3"
 	fi
 }
@@ -261,7 +296,10 @@ else # si no es igual a -nohup- significa que es la primer vuelva y apenas se co
 		else
 			echo "ya se había creado"
 		fi
-		date > fechaIni
+
+
+		echo $(date -d "$fecha" +%s) > fechaIni
+
 		if [ ! -n "$2" ];then
 			echo "ERROR: falta pasar directorio a monitorear"
 			exit 1;
